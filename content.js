@@ -87,6 +87,68 @@ function fillAllInputs() {
   return filledCount;
 }
 
+// Get all writable fields with their names
+function getAllWritableFields() {
+  const fields = [];
+  const elements = document.querySelectorAll('input[name], textarea[name], [contenteditable][name]');
+  
+  elements.forEach(element => {
+    // Skip hidden, readonly, and disabled elements
+    if (element.type === 'hidden' || 
+        element.readOnly || 
+        element.disabled || 
+        element.getAttribute('aria-readonly') === 'true') {
+      return;
+    }
+
+    // Get field name and current value
+    const name = element.getAttribute('name');
+    let value = '';
+    
+    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      value = element.value;
+    } else if (element.isContentEditable) {
+      value = element.innerHTML;
+    }
+
+    fields.push({
+      name: name,
+      value: value,
+      type: element.tagName.toLowerCase(),
+      isRichText: element.nextElementSibling?.querySelector('.note-editable') !== null
+    });
+  });
+
+  return fields;
+}
+
+// Fill multiple fields with custom values
+function fillCustomFields(fields) {
+  let filledCount = 0;
+  
+  fields.forEach(field => {
+    const element = document.querySelector(`[name="${field.name}"]`);
+    if (element) {
+      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+        element.value = field.value;
+      }
+      
+      const richEditor = element.nextElementSibling?.querySelector('.note-editable');
+      if (richEditor) {
+        richEditor.innerHTML = field.value;
+      }
+
+      // Trigger events
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      console.log(`寫入欄位 ${field.name}:`, field.value);
+      filledCount++;
+    }
+  });
+
+  return filledCount;
+}
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "fillInputs") {
@@ -95,6 +157,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "fillExample" && request.fieldId) {
     const success = fillExampleContent(request.fieldId);
     sendResponse({status: success ? "completed" : "field_not_found"});
+  } else if (request.action === "getFields") {
+    const fields = getAllWritableFields();
+    sendResponse({status: "completed", fields: fields});
+  } else if (request.action === "fillCustomFields" && request.fields) {
+    const count = fillCustomFields(request.fields);
+    sendResponse({status: "completed", count: count});
   }
   return true; // Keep the message channel open for async response
 });
