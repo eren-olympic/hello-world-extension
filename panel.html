@@ -1,19 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Hello Side Panel</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
         }
+        .field-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        label {
+            width: 100px;
+        }
+        input {
+            flex: 1;
+            padding: 5px;
+            margin-right: 5px;
+        }
+        button {
+            padding: 5px 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Hello, World!</h1>
     <p>Welcome to your Side Panel Extension!</p>
-    <button id="clickMe">Click Me</button>
-    <p id="message"></p>
+
+    <div class="field-container">
+        <label for="productName">商品名稱：</label>
+        <input type="text" id="productName">
+        <button class="generate" data-target="productName">生成</button>
+        <button class="write" data-target="productName">寫入</button>
+    </div>
+
+    <div class="field-container">
+        <label for="productIntro">商品簡介：</label>
+        <input type="text" id="productIntro">
+        <button class="generate" data-target="productIntro">生成</button>
+        <button class="write" data-target="productIntro">寫入</button>
+    </div>
+
+    <div class="field-container">
+        <label for="productDesc">商品描述：</label>
+        <input type="text" id="productDesc">
+        <button class="generate" data-target="productDesc">生成</button>
+        <button class="write" data-target="productDesc">寫入</button>
+    </div>
+
     <script src="panel.js"></script>
 </body>
 </html>
