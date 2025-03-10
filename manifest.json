@@ -1,0 +1,12 @@
+{
+    "name": "Hello World Side Panel",
+    "description": "A simple extension to display Hello World in a Side Panel",
+    "version": "1.0",
+    "manifest_version": 3,
+    "permissions": ["sidePanel"],
+    "side_panel": {
+      "default_path": "panel.html",
+      "default_title": "Hello Side Panel"
+    }
+}
+  
