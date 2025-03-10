@@ -1,12 +1,17 @@
 {
-    "name": "Hello World Side Panel",
-    "description": "A simple extension to display Hello World in a Side Panel",
-    "version": "1.1",
-    "manifest_version": 3,
-    "permissions": ["sidePanel"],
-    "side_panel": {
-      "default_path": "panel.html",
-      "default_title": "Hello Side Panel"
+  "manifest_version": 3,
+  "name": "Input Field Filler",
+  "version": "1.0",
+  "description": "Detects all input fields on a page and fills them with 'test'",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "scripting", "tabs"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
     }
+  ]
 }
   
