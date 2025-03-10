@@ -1,4 +1,15 @@
-document.addEventListener('DOMContentLoaded', function() {
+// Function to inject content script
+async function injectContentScript() {
+  const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+  await chrome.scripting.executeScript({
+    target: {tabId: tab.id},
+    files: ['content.js']
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+  // Inject content script first
+  await injectContentScript();
   const fillButton = document.getElementById('fillButton');
   const generalStatus = document.getElementById('generalStatus');
   const productStatus = document.getElementById('productStatus');

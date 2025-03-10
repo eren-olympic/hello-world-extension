@@ -3,15 +3,15 @@
   "name": "Input Field Filler",
   "version": "1.0",
   "description": "Detects all input fields on a page and fills them with 'test'",
-  "action": {
-    "default_popup": "popup.html"
+  "side_panel": {
+    "default_path": "panel.html"
   },
-  "permissions": ["activeTab", "scripting", "tabs"],
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
-  ]
+  "action": {
+    "default_title": "開啟欄位填寫器"
+  },
+  "permissions": ["activeTab", "scripting", "tabs", "sidePanel"],
+  "background": {
+    "service_worker": "background.js"
+  }
 }
   
