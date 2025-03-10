@@ -87,6 +87,14 @@
 </head>
 <body>
   <div class="section">
+    <h2>平台選擇</h2>
+    <select id="platformSelect" style="width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; background: #fff;">
+      <option value="ewebs">ewebs</option>
+      <option value="shopee">蝦皮</option>
+    </select>
+  </div>
+
+  <div class="section">
     <h2>快速填寫</h2>
     <button id="fillButton">填入測試資料</button>
     <div class="status" id="generalStatus"></div>
@@ -94,9 +102,15 @@
 
   <div class="section">
     <h2>商品資訊範例</h2>
-    <button class="product-button" data-field="prod_name">填入商品名稱範例</button>
-    <button class="product-button" data-field="prod_desc_1">填入商品簡介範例</button>
-    <button class="product-button" data-field="prod_desc_2">填入商品描述範例</button>
+    <div id="ewebsButtons">
+      <button class="product-button" data-field="prod_name">填入商品名稱範例 (Ewebs)</button>
+      <button class="product-button" data-field="prod_desc_1">填入商品簡介範例 (Ewebs)</button>
+      <button class="product-button" data-field="prod_desc_2">填入商品描述範例 (Ewebs)</button>
+    </div>
+    <div id="shopeeButtons" style="display: none;">
+      <button class="product-button" data-field="product-name">填入商品名稱範例 (Shopee)</button>
+      <button class="product-button" data-field="product-description">填入商品描述範例 (Shopee)</button>
+    </div>
     <div class="status" id="productStatus"></div>
   </div>
 

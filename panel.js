@@ -16,7 +16,11 @@ async function ensureContentScript() {
   await injectContentScript();
 }
 
+// Store current platform
+let currentPlatform = 'ewebs';
+
 document.addEventListener('DOMContentLoaded', async function() {
+  const platformSelect = document.getElementById('platformSelect');
   const fillButton = document.getElementById('fillButton');
   const generalStatus = document.getElementById('generalStatus');
   const productStatus = document.getElementById('productStatus');
@@ -25,6 +29,28 @@ document.addEventListener('DOMContentLoaded', async function() {
   const applyCustomFields = document.getElementById('applyCustomFields');
   const customFieldStatus = document.getElementById('customFieldStatus');
   
+  // Platform selection handling
+  const ewebsButtons = document.getElementById('ewebsButtons');
+  const shopeeButtons = document.getElementById('shopeeButtons');
+
+  platformSelect.addEventListener('change', function() {
+    currentPlatform = this.value;
+    // Update buttons visibility
+    if (this.value === 'shopee') {
+      ewebsButtons.style.display = 'none';
+      shopeeButtons.style.display = 'block';
+    } else {
+      ewebsButtons.style.display = 'block';
+      shopeeButtons.style.display = 'none';
+    }
+    // Clear all fields and status
+    fieldsList.innerHTML = '';
+    applyCustomFields.style.display = 'none';
+    generalStatus.textContent = '';
+    productStatus.textContent = '';
+    customFieldStatus.textContent = '';
+  });
+  
   // Ensure content script is injected when panel opens
   await ensureContentScript();
 
@@ -32,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   fillButton.addEventListener('click', async function() {
     await ensureContentScript();
     const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
-    chrome.tabs.sendMessage(tab.id, {action: "fillInputs"}, function(response) {
+    chrome.tabs.sendMessage(tab.id, {action: "fillInputs", platform: currentPlatform}, function(response) {
       if(response) {
         generalStatus.textContent = `完成！找到 ${response.count} 個輸入欄位。`;
       } else {
@@ -49,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
       chrome.tabs.sendMessage(tab.id, {
         action: "fillExample",
+        platform: currentPlatform,
         fieldId: fieldId
       }, function(response) {
         if(response && response.status === "completed") {
@@ -64,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   listFieldsButton.addEventListener('click', async function() {
     await ensureContentScript();
     const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
-    chrome.tabs.sendMessage(tab.id, {action: "getFields"}, function(response) {
+    chrome.tabs.sendMessage(tab.id, {action: "getFields", platform: currentPlatform}, function(response) {
       if(response && response.status === "completed") {
         // Clear previous content
         fieldsList.innerHTML = '';
@@ -188,6 +215,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
     chrome.tabs.sendMessage(tab.id, {
       action: "fillCustomFields",
+      platform: currentPlatform,
       fields: fields
     }, function(response) {
       if(response && response.status === "completed") {

@@ -10,7 +10,23 @@ async function injectContentScript() {
 document.addEventListener('DOMContentLoaded', async function() {
   // Inject content script first
   await injectContentScript();
+  
+  // Get current platform
+  const platformSelect = document.getElementById('platform');
   const fillButton = document.getElementById('fillButton');
+  const ewebsButtons = document.getElementById('ewebsButtons');
+  const shopeeButtons = document.getElementById('shopeeButtons');
+
+  // Handle platform change
+  platformSelect.addEventListener('change', function() {
+    if (this.value === 'shopee') {
+      ewebsButtons.style.display = 'none';
+      shopeeButtons.style.display = 'block';
+    } else {
+      ewebsButtons.style.display = 'block';
+      shopeeButtons.style.display = 'none';
+    }
+  });
   const generalStatus = document.getElementById('generalStatus');
   const productStatus = document.getElementById('productStatus');
   const listFieldsButton = document.getElementById('listFieldsButton');
@@ -21,7 +37,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   // General input filling
   fillButton.addEventListener('click', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: "fillInputs"}, function(response) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "fillInputs",
+        platform: platformSelect.value
+      }, function(response) {
         if(response) {
           generalStatus.textContent = `完成！找到 ${response.count} 個輸入欄位。`;
         } else {
@@ -38,10 +57,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: "fillExample",
-          fieldId: fieldId
+          fieldId: fieldId,
+          platform: platformSelect.value
         }, function(response) {
           if(response && response.status === "completed") {
-            productStatus.textContent = `已填入${button.textContent.replace('填入', '').replace('範例', '')}。`;
+            productStatus.textContent = `已填入${button.textContent.replace('填入', '').replace('範例', '').replace(' (Shopee)', '').replace(' (Ewebs)', '')}。`;
           } else {
             productStatus.textContent = `錯誤：找不到指定的欄位 (${fieldId})`;
           }
@@ -53,7 +73,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   // List all fields button
   listFieldsButton.addEventListener('click', function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: "getFields"}, function(response) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "getFields",
+        platform: platformSelect.value
+      }, function(response) {
         if(response && response.status === "completed") {
           // Clear previous content
           fieldsList.innerHTML = '';
@@ -107,7 +130,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
       chrome.tabs.sendMessage(tabs[0].id, {
         action: "fillCustomFields",
-        fields: fields
+        fields: fields,
+        platform: platformSelect.value
       }, function(response) {
         if(response && response.status === "completed") {
           customFieldStatus.textContent = `已填入 ${response.count} 個欄位。`;
