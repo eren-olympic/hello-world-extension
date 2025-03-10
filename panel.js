@@ -76,26 +76,96 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Add fields to table
         response.fields.forEach(field => {
-          const row = document.createElement('tr');
+          // Main row for field name and input
+          const mainRow = document.createElement('tr');
+          mainRow.style.borderBottom = '1px solid #eee';
           
-          // Field name cell
+          // Field name cell with type info
           const nameCell = document.createElement('td');
-          nameCell.textContent = field.name;
+          const nameDiv = document.createElement('div');
+          nameDiv.textContent = field.displayName;
+          nameDiv.style.fontWeight = 'bold';
+          
+          const idDiv = document.createElement('div');
+          idDiv.textContent = field.name;
+          idDiv.style.fontSize = '11px';
+          idDiv.style.color = '#999';
+          idDiv.style.fontFamily = 'monospace';
+          
+          const typeDiv = document.createElement('div');
+          typeDiv.textContent = `${field.elementType}${field.inputType !== 'text' ? ` (${field.inputType})` : ''}`;
+          typeDiv.style.fontSize = '12px';
+          typeDiv.style.color = '#666';
+          
+          nameCell.appendChild(nameDiv);
+          nameCell.appendChild(idDiv);
+          nameCell.appendChild(typeDiv);
           nameCell.style.padding = '5px';
-          row.appendChild(nameCell);
+          mainRow.appendChild(nameCell);
           
           // Input cell
           const inputCell = document.createElement('td');
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.value = field.value;
+          let input;
+          
+          if (field.elementType === 'select' && field.constraints.options) {
+            input = document.createElement('select');
+            field.constraints.options.forEach(opt => {
+              const option = document.createElement('option');
+              option.value = opt.value;
+              option.textContent = opt.text;
+              option.selected = opt.selected;
+              input.appendChild(option);
+            });
+          } else {
+            input = document.createElement('input');
+            input.type = field.inputType;
+            input.value = field.value;
+            
+            // Apply constraints to input
+            if (field.constraints.maxLength) input.maxLength = field.constraints.maxLength;
+            if (field.constraints.minLength) input.minLength = field.constraints.minLength;
+            if (field.constraints.max) input.max = field.constraints.max;
+            if (field.constraints.min) input.min = field.constraints.min;
+            if (field.constraints.pattern) input.pattern = field.constraints.pattern;
+            if (field.constraints.required) input.required = true;
+            if (field.constraints.step) input.step = field.constraints.step;
+            if (field.inputType === 'file' && field.constraints.accept) input.accept = field.constraints.accept;
+            if (field.constraints.multiple) input.multiple = true;
+          }
+          
           input.setAttribute('data-field-name', field.name);
           input.style.width = '100%';
           input.style.padding = '2px';
           inputCell.appendChild(input);
-          row.appendChild(inputCell);
+          mainRow.appendChild(inputCell);
           
-          table.appendChild(row);
+          table.appendChild(mainRow);
+          
+          // Add constraints info row if any constraints exist
+          const constraints = Object.entries(field.constraints).filter(([key]) => key !== 'options');
+          if (constraints.length > 0 || field.isRichText) {
+            const infoRow = document.createElement('tr');
+            const infoCell = document.createElement('td');
+            infoCell.colSpan = 2;
+            infoCell.style.padding = '2px 5px 8px 5px';
+            infoCell.style.fontSize = '12px';
+            infoCell.style.color = '#666';
+            
+            let infoText = [];
+            if (field.isRichText) infoText.push('富文本編輯器');
+            
+            constraints.forEach(([key, value]) => {
+              if (value === true) {
+                infoText.push(key);
+              } else {
+                infoText.push(`${key}: ${value}`);
+              }
+            });
+            
+            infoCell.textContent = infoText.join(' | ');
+            infoRow.appendChild(infoCell);
+            table.appendChild(infoRow);
+          }
         });
         
         fieldsList.appendChild(table);

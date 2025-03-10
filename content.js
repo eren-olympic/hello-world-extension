@@ -87,10 +87,10 @@ function fillAllInputs() {
   return filledCount;
 }
 
-// Get all writable fields with their names
+// Get all writable fields with their names and constraints
 function getAllWritableFields() {
   const fields = [];
-  const elements = document.querySelectorAll('input[name], textarea[name], [contenteditable][name]');
+  const elements = document.querySelectorAll('input[name], textarea[name], [contenteditable][name], select[name]');
   
   elements.forEach(element => {
     // Skip hidden, readonly, and disabled elements
@@ -105,18 +105,158 @@ function getAllWritableFields() {
     const name = element.getAttribute('name');
     let value = '';
     
-    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-      value = element.value;
+    // Try to get a user-friendly display name
+    let displayName = '';
+    
+    // 1. Check for label element
+    const id = element.id;
+    if (id) {
+      const label = document.querySelector(`label[for="${id}"]`);
+      if (label) {
+        displayName = label.textContent.trim();
+      }
+    }
+    
+    // 2. Check for parent label if no explicit label found
+    if (!displayName) {
+      const parentLabel = element.closest('label');
+      if (parentLabel) {
+        // Get text content excluding the input's text
+        const clone = parentLabel.cloneNode(true);
+        const inputs = clone.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => input.remove());
+        displayName = clone.textContent.trim();
+      }
+    }
+    
+    // 3. Check for aria-label
+    if (!displayName) {
+      displayName = element.getAttribute('aria-label');
+    }
+    
+    // 4. Check for placeholder
+    if (!displayName) {
+      displayName = element.getAttribute('placeholder');
+    }
+    
+    // 5. Check for title attribute
+    if (!displayName) {
+      displayName = element.getAttribute('title');
+    }
+    
+    // 6. Try to find a preceding text node or element that might be a label
+    if (!displayName) {
+      let previousElement = element.previousElementSibling;
+      while (previousElement && !displayName) {
+        if (previousElement.tagName === 'LABEL' || 
+            previousElement.tagName === 'SPAN' || 
+            previousElement.tagName === 'DIV') {
+          displayName = previousElement.textContent.trim();
+          break;
+        }
+        previousElement = previousElement.previousElementSibling;
+      }
+    }
+    
+    // 7. Try to make the name attribute more readable if no other name found
+    if (!displayName && name) {
+      displayName = name
+        .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+        .replace(/[_-]/g, ' ')      // Replace underscores and hyphens with spaces
+        .replace(/\s+/g, ' ')       // Replace multiple spaces with single space
+        .trim()
+        .toLowerCase()
+        .replace(/^\w/, c => c.toUpperCase()); // Capitalize first letter
+    }
+    
+    let fieldInfo = {
+      name: name,
+      displayName: displayName || name,
+      value: value,
+      elementType: element.tagName.toLowerCase(),
+      inputType: element.type || 'text',
+      isRichText: element.nextElementSibling?.querySelector('.note-editable') !== null,
+      constraints: {}
+    };
+    
+    // Get value based on element type
+    if (element.tagName === 'SELECT') {
+      fieldInfo.value = element.value;
+      fieldInfo.constraints.options = Array.from(element.options).map(opt => ({
+        value: opt.value,
+        text: opt.text,
+        selected: opt.selected
+      }));
+    } else if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      fieldInfo.value = element.value;
+      
+      // Get input constraints
+      if (element.maxLength && element.maxLength !== -1) {
+        fieldInfo.constraints.maxLength = element.maxLength;
+      }
+      if (element.minLength && element.minLength !== -1) {
+        fieldInfo.constraints.minLength = element.minLength;
+      }
+      if (element.max) {
+        fieldInfo.constraints.max = element.max;
+      }
+      if (element.min) {
+        fieldInfo.constraints.min = element.min;
+      }
+      if (element.pattern) {
+        fieldInfo.constraints.pattern = element.pattern;
+      }
+      if (element.required) {
+        fieldInfo.constraints.required = true;
+      }
+      
+      // Get specific constraints based on input type
+      switch (element.type) {
+        case 'number':
+        case 'range':
+          fieldInfo.constraints.step = element.step;
+          break;
+        case 'email':
+          fieldInfo.constraints.multiple = element.multiple;
+          break;
+        case 'file':
+          fieldInfo.constraints.accept = element.accept;
+          fieldInfo.constraints.multiple = element.multiple;
+          break;
+        case 'datetime-local':
+        case 'date':
+        case 'time':
+          if (element.min) fieldInfo.constraints.min = element.min;
+          if (element.max) fieldInfo.constraints.max = element.max;
+          break;
+      }
     } else if (element.isContentEditable) {
-      value = element.innerHTML;
+      fieldInfo.value = element.innerHTML;
     }
 
-    fields.push({
-      name: name,
-      value: value,
-      type: element.tagName.toLowerCase(),
-      isRichText: element.nextElementSibling?.querySelector('.note-editable') !== null
-    });
+    // Get any data attributes
+    const dataAttributes = {};
+    for (let attr of element.attributes) {
+      if (attr.name.startsWith('data-')) {
+        dataAttributes[attr.name] = attr.value;
+      }
+    }
+    if (Object.keys(dataAttributes).length > 0) {
+      fieldInfo.dataAttributes = dataAttributes;
+    }
+
+    // Get aria attributes
+    const ariaAttributes = {};
+    for (let attr of element.attributes) {
+      if (attr.name.startsWith('aria-')) {
+        ariaAttributes[attr.name] = attr.value;
+      }
+    }
+    if (Object.keys(ariaAttributes).length > 0) {
+      fieldInfo.ariaAttributes = ariaAttributes;
+    }
+
+    fields.push(fieldInfo);
   });
 
   return fields;
