@@ -13,12 +13,12 @@ const PLATFORM_CONFIG = {
   shopee: {
     selectors: {
       inputs: {
-        'product-name': '.product-edit__main input[name="name"]',
-        'product-description': '.product-edit__main textarea[name="description"]'
+        'product-name': '.product-edit-form-item input[type="text"]',
+        'product-description': '.ql-editor'
       }
     },
     exampleContent: {
-      'product-name': "【蝦皮示範】超值商品",
+      'product-name': "【品牌名稱】商品類型 重要功能 材質 顏色 尺寸 規格",
       'product-description': "🌟 商品特色\n-----------------\n✅ 高品質材料\n✅ 精美設計\n✅ 耐用實用\n✅ 多種用途\n\n📦 商品規格\n-----------------\n📏 尺寸：依商品\n🎨 材質：優質材料\n🏭 產地：台灣製造\n\n💡 使用說明\n-----------------\n1️⃣ 收到商品請檢查\n2️⃣ 依說明使用\n3️⃣ 問題請聯繫我們\n\n⭐️ 購物須知\n-----------------\n✔️ 7天鑑賞期\n✔️ 正品保證\n✔️ 優質客服",
       'price': "299",
       'stock': "100",
@@ -55,6 +55,15 @@ function fillExampleContent(fieldName, platform = 'ewebs') {
     const selector = config.selectors.inputs[actualFieldName];
     if (selector) {
       element = document.querySelector(selector);
+      
+      // 特別處理蝦皮的商品描述欄位
+      if (actualFieldName === 'product-description' && element) {
+        element.innerHTML = config.exampleContent[actualFieldName];
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        console.log(`寫入欄位 ${actualFieldName}:`, config.exampleContent[actualFieldName]);
+        return true;
+      }
     }
   } else {
     // 原本的方式
@@ -93,20 +102,26 @@ function fillAllInputs(platform = 'ewebs') {
   if (platform === 'shopee') {
     // 針對 Shopee 的特定欄位
     const fields = ['product-name', 'product-description'];
-    fields.forEach((fieldName, index) => {
+    fields.forEach((fieldName) => {
       const selector = config.selectors.inputs[fieldName];
       if (selector) {
         const element = document.querySelector(selector);
-        if (element && !element.readOnly && !element.disabled) {
-          const testValue = `test${index + 1}`;
-          element.value = testValue;
+        if (element) {
+          if (fieldName === 'product-description') {
+            // 特別處理蝦皮的商品描述欄位
+            element.innerHTML = 'test content';
+          } else if (!element.readOnly && !element.disabled) {
+            element.value = 'test content';
+          } else {
+            return;
+          }
           
           // Trigger events
           element.dispatchEvent(new Event('input', { bubbles: true }));
           element.dispatchEvent(new Event('change', { bubbles: true }));
           
           filledCount++;
-          console.log(`填入 ${fieldName}: ${testValue}`);
+          console.log(`填入 ${fieldName}: test content`);
         }
       }
     });
@@ -157,174 +172,208 @@ function fillAllInputs(platform = 'ewebs') {
 function getAllWritableFields(platform = 'ewebs') {
   const config = PLATFORM_CONFIG[platform];
   const fields = [];
-  const elements = document.querySelectorAll(config.selectors.inputs);
   
-  elements.forEach(element => {
-    // Skip hidden, readonly, and disabled elements
-    if (element.type === 'hidden' || 
-        element.readOnly || 
-        element.disabled || 
-        element.getAttribute('aria-readonly') === 'true') {
-      return;
-    }
-
-    // Get field name and current value
-    const name = element.getAttribute('name');
-    let value = '';
-    
-    // Try to get a user-friendly display name
-    let displayName = '';
-    
-    // 1. Check for label element
-    const id = element.id;
-    if (id) {
-      const label = document.querySelector(`label[for="${id}"]`);
-      if (label) {
-        displayName = label.textContent.trim();
-      }
-    }
-    
-    // 2. Check for parent label if no explicit label found
-    if (!displayName) {
-      const parentLabel = element.closest('label');
-      if (parentLabel) {
-        // Get text content excluding the input's text
-        const clone = parentLabel.cloneNode(true);
-        const inputs = clone.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => input.remove());
-        displayName = clone.textContent.trim();
-      }
-    }
-    
-    // 3. Check for aria-label
-    if (!displayName) {
-      displayName = element.getAttribute('aria-label');
-    }
-    
-    // 4. Check for placeholder
-    if (!displayName) {
-      displayName = element.getAttribute('placeholder');
-    }
-    
-    // 5. Check for title attribute
-    if (!displayName) {
-      displayName = element.getAttribute('title');
-    }
-    
-    // 6. Try to find a preceding text node or element that might be a label
-    if (!displayName) {
-      let previousElement = element.previousElementSibling;
-      while (previousElement && !displayName) {
-        if (previousElement.tagName === 'LABEL' || 
-            previousElement.tagName === 'SPAN' || 
-            previousElement.tagName === 'DIV') {
-          displayName = previousElement.textContent.trim();
-          break;
+  if (platform === 'shopee') {
+    // 針對蝦皮平台的特殊處理
+    for (const [fieldName, selector] of Object.entries(config.selectors.inputs)) {
+      const element = document.querySelector(selector);
+      if (element) {
+        let fieldInfo = {
+          name: fieldName,
+          displayName: fieldName === 'product-name' ? '商品名稱' : '商品描述',
+          value: fieldName === 'product-description' ? element.innerHTML : element.value,
+          elementType: element.tagName.toLowerCase(),
+          inputType: element.type || 'text',
+          isRichText: fieldName === 'product-description',
+          constraints: {}
+        };
+        
+        // 設定商品名稱的限制
+        if (fieldName === 'product-name') {
+          fieldInfo.constraints.maxLength = 60;
+          fieldInfo.constraints.required = true;
         }
-        previousElement = previousElement.previousElementSibling;
+        
+        // 設定商品描述的限制
+        if (fieldName === 'product-description') {
+          fieldInfo.constraints.maxLength = 3000;
+          fieldInfo.constraints.required = true;
+        }
+        
+        fields.push(fieldInfo);
       }
     }
+  } else {
+    // 原本的行為
+    const elements = document.querySelectorAll(config.selectors.inputs);
     
-    // 7. Try to make the name attribute more readable if no other name found
-    if (!displayName && name) {
-      displayName = name
-        .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-        .replace(/[_-]/g, ' ')      // Replace underscores and hyphens with spaces
-        .replace(/\s+/g, ' ')       // Replace multiple spaces with single space
-        .trim()
-        .toLowerCase()
-        .replace(/^\w/, c => c.toUpperCase()); // Capitalize first letter
-    }
-    
-    let fieldInfo = {
-      name: name,
-      displayName: displayName || name,
-      value: value,
-      elementType: element.tagName.toLowerCase(),
-      inputType: element.type || 'text',
-      isRichText: element.nextElementSibling?.querySelector('.note-editable') !== null,
-      constraints: {}
-    };
-    
-    // Get value based on element type
-    if (element.tagName === 'SELECT') {
-      fieldInfo.value = element.value;
-      fieldInfo.constraints.options = Array.from(element.options).map(opt => ({
-        value: opt.value,
-        text: opt.text,
-        selected: opt.selected
-      }));
-    } else if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-      fieldInfo.value = element.value;
+    elements.forEach(element => {
+      // Skip hidden, readonly, and disabled elements
+      if (element.type === 'hidden' || 
+          element.readOnly || 
+          element.disabled || 
+          element.getAttribute('aria-readonly') === 'true') {
+        return;
+      }
+
+      // Get field name and current value
+      const name = element.getAttribute('name');
+      let value = '';
       
-      // Get input constraints
-      if (element.maxLength && element.maxLength !== -1) {
-        fieldInfo.constraints.maxLength = element.maxLength;
-      }
-      if (element.minLength && element.minLength !== -1) {
-        fieldInfo.constraints.minLength = element.minLength;
-      }
-      if (element.max) {
-        fieldInfo.constraints.max = element.max;
-      }
-      if (element.min) {
-        fieldInfo.constraints.min = element.min;
-      }
-      if (element.pattern) {
-        fieldInfo.constraints.pattern = element.pattern;
-      }
-      if (element.required) {
-        fieldInfo.constraints.required = true;
+      // Try to get a user-friendly display name
+      let displayName = '';
+      
+      // 1. Check for label element
+      const id = element.id;
+      if (id) {
+        const label = document.querySelector(`label[for="${id}"]`);
+        if (label) {
+          displayName = label.textContent.trim();
+        }
       }
       
-      // Get specific constraints based on input type
-      switch (element.type) {
-        case 'number':
-        case 'range':
-          fieldInfo.constraints.step = element.step;
-          break;
-        case 'email':
-          fieldInfo.constraints.multiple = element.multiple;
-          break;
-        case 'file':
-          fieldInfo.constraints.accept = element.accept;
-          fieldInfo.constraints.multiple = element.multiple;
-          break;
-        case 'datetime-local':
-        case 'date':
-        case 'time':
-          if (element.min) fieldInfo.constraints.min = element.min;
-          if (element.max) fieldInfo.constraints.max = element.max;
-          break;
+      // 2. Check for parent label if no explicit label found
+      if (!displayName) {
+        const parentLabel = element.closest('label');
+        if (parentLabel) {
+          // Get text content excluding the input's text
+          const clone = parentLabel.cloneNode(true);
+          const inputs = clone.querySelectorAll('input, select, textarea');
+          inputs.forEach(input => input.remove());
+          displayName = clone.textContent.trim();
+        }
       }
-    } else if (element.isContentEditable) {
-      fieldInfo.value = element.innerHTML;
-    }
-
-    // Get any data attributes
-    const dataAttributes = {};
-    for (let attr of element.attributes) {
-      if (attr.name.startsWith('data-')) {
-        dataAttributes[attr.name] = attr.value;
+      
+      // 3. Check for aria-label
+      if (!displayName) {
+        displayName = element.getAttribute('aria-label');
       }
-    }
-    if (Object.keys(dataAttributes).length > 0) {
-      fieldInfo.dataAttributes = dataAttributes;
-    }
-
-    // Get aria attributes
-    const ariaAttributes = {};
-    for (let attr of element.attributes) {
-      if (attr.name.startsWith('aria-')) {
-        ariaAttributes[attr.name] = attr.value;
+      
+      // 4. Check for placeholder
+      if (!displayName) {
+        displayName = element.getAttribute('placeholder');
       }
-    }
-    if (Object.keys(ariaAttributes).length > 0) {
-      fieldInfo.ariaAttributes = ariaAttributes;
-    }
+      
+      // 5. Check for title attribute
+      if (!displayName) {
+        displayName = element.getAttribute('title');
+      }
+      
+      // 6. Try to find a preceding text node or element that might be a label
+      if (!displayName) {
+        let previousElement = element.previousElementSibling;
+        while (previousElement && !displayName) {
+          if (previousElement.tagName === 'LABEL' || 
+              previousElement.tagName === 'SPAN' || 
+              previousElement.tagName === 'DIV') {
+            displayName = previousElement.textContent.trim();
+            break;
+          }
+          previousElement = previousElement.previousElementSibling;
+        }
+      }
+      
+      // 7. Try to make the name attribute more readable if no other name found
+      if (!displayName && name) {
+        displayName = name
+          .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+          .replace(/[_-]/g, ' ')      // Replace underscores and hyphens with spaces
+          .replace(/\s+/g, ' ')       // Replace multiple spaces with single space
+          .trim()
+          .toLowerCase()
+          .replace(/^\w/, c => c.toUpperCase()); // Capitalize first letter
+      }
+      
+      let fieldInfo = {
+        name: name,
+        displayName: displayName || name,
+        value: value,
+        elementType: element.tagName.toLowerCase(),
+        inputType: element.type || 'text',
+        isRichText: element.nextElementSibling?.querySelector('.note-editable') !== null,
+        constraints: {}
+      };
+      
+      // Get value based on element type
+      if (element.tagName === 'SELECT') {
+        fieldInfo.value = element.value;
+        fieldInfo.constraints.options = Array.from(element.options).map(opt => ({
+          value: opt.value,
+          text: opt.text,
+          selected: opt.selected
+        }));
+      } else if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+        fieldInfo.value = element.value;
+        
+        // Get input constraints
+        if (element.maxLength && element.maxLength !== -1) {
+          fieldInfo.constraints.maxLength = element.maxLength;
+        }
+        if (element.minLength && element.minLength !== -1) {
+          fieldInfo.constraints.minLength = element.minLength;
+        }
+        if (element.max) {
+          fieldInfo.constraints.max = element.max;
+        }
+        if (element.min) {
+          fieldInfo.constraints.min = element.min;
+        }
+        if (element.pattern) {
+          fieldInfo.constraints.pattern = element.pattern;
+        }
+        if (element.required) {
+          fieldInfo.constraints.required = true;
+        }
+        
+        // Get specific constraints based on input type
+        switch (element.type) {
+          case 'number':
+          case 'range':
+            fieldInfo.constraints.step = element.step;
+            break;
+          case 'email':
+            fieldInfo.constraints.multiple = element.multiple;
+            break;
+          case 'file':
+            fieldInfo.constraints.accept = element.accept;
+            fieldInfo.constraints.multiple = element.multiple;
+            break;
+          case 'datetime-local':
+          case 'date':
+          case 'time':
+            if (element.min) fieldInfo.constraints.min = element.min;
+            if (element.max) fieldInfo.constraints.max = element.max;
+            break;
+        }
+      } else if (element.isContentEditable) {
+        fieldInfo.value = element.innerHTML;
+      }
 
-    fields.push(fieldInfo);
-  });
+      // Get any data attributes
+      const dataAttributes = {};
+      for (let attr of element.attributes) {
+        if (attr.name.startsWith('data-')) {
+          dataAttributes[attr.name] = attr.value;
+        }
+      }
+      if (Object.keys(dataAttributes).length > 0) {
+        fieldInfo.dataAttributes = dataAttributes;
+      }
+
+      // Get aria attributes
+      const ariaAttributes = {};
+      for (let attr of element.attributes) {
+        if (attr.name.startsWith('aria-')) {
+          ariaAttributes[attr.name] = attr.value;
+        }
+      }
+      if (Object.keys(ariaAttributes).length > 0) {
+        fieldInfo.ariaAttributes = ariaAttributes;
+      }
+
+      fields.push(fieldInfo);
+    });
+  }
 
   return fields;
 }
@@ -334,22 +383,47 @@ function fillCustomFields(fields) {
   let filledCount = 0;
   
   fields.forEach(field => {
-    const element = document.querySelector(`[name="${field.name}"]`);
-    if (element) {
-      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
-        element.value = field.value;
-      }
+    if (field.name === 'product-name' || field.name === 'product-description') {
+      // 處理蝦皮特定欄位
+      const platform = 'shopee';
+      const config = PLATFORM_CONFIG[platform];
+      const selector = config.selectors.inputs[field.name];
       
-      const richEditor = element.nextElementSibling?.querySelector('.note-editable');
-      if (richEditor) {
-        richEditor.innerHTML = field.value;
+      if (selector) {
+        const element = document.querySelector(selector);
+        if (element) {
+          if (field.name === 'product-description') {
+            element.innerHTML = field.value;
+          } else {
+            element.value = field.value;
+          }
+          
+          // Trigger events
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+          element.dispatchEvent(new Event('change', { bubbles: true }));
+          console.log(`寫入欄位 ${field.name}:`, field.value);
+          filledCount++;
+        }
       }
+    } else {
+      // 原本的行為
+      const element = document.querySelector(`[name="${field.name}"]`);
+      if (element) {
+        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+          element.value = field.value;
+        }
+        
+        const richEditor = element.nextElementSibling?.querySelector('.note-editable');
+        if (richEditor) {
+          richEditor.innerHTML = field.value;
+        }
 
-      // Trigger events
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-      console.log(`寫入欄位 ${field.name}:`, field.value);
-      filledCount++;
+        // Trigger events
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        console.log(`寫入欄位 ${field.name}:`, field.value);
+        filledCount++;
+      }
     }
   });
 
